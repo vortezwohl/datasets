@@ -4,6 +4,9 @@ from pprint import pp
 import pandas as pd
 import json
 
+INSTRUCTION = ('<角色>你是一个**海外互联网短剧编剧**</角色>'
+               '<任务>依据给定评估标准, 对用户提供的短剧大纲进行多维度评估, 给出各个维度的评估结果(通过/不通过), 对于不通过的维度, 请给出其原因和改进建议</任务>'
+               '<目标>按规定格式给出评估结果和改进建议</目标>')
 
 STANDARD = '''
 <评估标准>
@@ -78,8 +81,7 @@ def convert_to_alpaca_format(df):
     alpaca_data = []
     for _, row in df.iterrows():
         # 提取 outline 作为 instruction
-        instruction = ('<任务>依据给定评估标准, 对用户提供的短剧大纲进行多维度评估, 给出各个维度的评估结果(通过/不通过), 对于不通过的维度, 请给出其原因和改进建议</任务>'
-                       '<目标>按规定格式给出评估结果和改进建议</目标>')
+        instruction = INSTRUCTION
         instruction += STANDARD
         _input = '<短剧大纲>' + row['outline'] + '</短剧大纲>'
 
@@ -107,8 +109,7 @@ def convert_to_dpo_format(df):
     dpo_data = []
     for _, row in df.iterrows():
         # 提取 outline 作为 instruction
-        instruction = ('<任务>依据给定评估标准, 对用户提供的短剧大纲进行多维度评估, 给出各个维度的评估结果(通过/不通过), 对于不通过的维度, 请给出其原因和改进建议</任务>'
-                       '<目标>按规定格式给出评估结果和改进建议</目标>')
+        instruction = INSTRUCTION
         instruction += STANDARD
         _input = '<短剧大纲>' + row['outline'] + '</短剧大纲>'
 
