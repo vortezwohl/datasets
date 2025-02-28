@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 import pandas as pd
 
 load_dotenv()
-model = get_openai_model(temp=0.9, top_p=0.7)
+model = get_openai_model(temp=0.5, top_p=0.8)
 
 data = {
     'prompt': [],
@@ -13,7 +13,7 @@ data = {
     'llm_result': []
 }
 
-with open('./script_review_alpaca_2025-02-28-13-47-13.json', 'r', encoding='utf-8') as f:
+with open('./script_review_alpaca_2025-02-28-15-52-27.json', 'r', encoding='utf-8') as f:
     data_json = json.load(f)
 
 for i, item in enumerate(data_json):
@@ -27,4 +27,4 @@ for i, item in enumerate(data_json):
     print('Prompt:', prompt)
     print('Response:', llm_result, end='\n\n')
     df = pd.DataFrame(data)
-    df.to_csv('./test_result/gpt4o-mini.csv', index=False, encoding='utf-8')
+    df.to_csv('./test_result/gpt4o-mini-retry.csv', index=False, encoding='utf-8')

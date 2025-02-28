@@ -70,13 +70,20 @@ def data_reform(_raw_data, llm: bool = False):
     try:
         _data = json.loads(_raw_data)
         if llm:
-            _data = _data['result']
+            # _data = _data['result']
+            ...
         for d in _data:
             res = d['result']
             del d['result']
-            d['analysis'] = d['description']
+            try:
+                d['analysis'] = d['description']
+            except:
+                pass
             d['result'] = res
-            del d['description']
+            try:
+                del d['description']
+            except:
+                ...
         return _data
     except json.JSONDecodeError as e:
         print(f'Failed to parse: \n{_raw_data}\nError: {e}')
