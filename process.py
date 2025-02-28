@@ -1,4 +1,5 @@
 from datetime import datetime
+from pprint import pp
 
 import pandas as pd
 import json
@@ -6,21 +7,31 @@ import json
 STANDARD = '''
 <评估标准>
 1. 主线 (核心故事线): 
-    评估主线故事的质量和潜力。
-    - 通过标准: 主线 **描述清晰且集中**, 核心矛盾突出且简单易懂, 但矛盾不宜复杂；剧情 **节奏紧凑且脉络简单**，符合短剧的格式要求；逻辑 **自洽**；主线具备支撑剧情发展和吸引观众的基础，
-    - 不通过标准: 主线 **矛盾分散**，缺乏明确的冲突焦点；或者剧情 **节奏拖沓或过于复杂**，不符合短剧的紧凑要求；或者 **前后逻辑不自洽**，难以支撑剧情发展。
+    评估主线故事是否有充足的看点, 在 50 集以上的拍摄中, 能否保证每一集都能够分配到充分精彩的看点, 避免观众中途流失
+    - 评估标准 (至少满足其一)
+        1. **主线剧情清晰且矛盾集中**, 核心矛盾冲突简单易懂, 让观众无需理解能力即可看懂, 避免让观众陷入思考, 矛盾集中于一处(或一人/一团体/一实体), 矛盾不宜分散
+        2. **剧情节奏紧凑且脉络简单**, 不宜过于悬疑, 符合短剧快节奏-通俗-简单的基本要求, 避免节奏拖沓
+        3. **逻辑自洽**, 剧情前后呼应, 人物符合剧情背景且无违和感, 剧情不应自相矛盾
+        4. **看点丰富**, 剧情要有丰富且精彩不断的看点, 以长期不断观众观看, 避免平淡无奇的剧情
 2. 人设 (角色设定): 
-    评估角色的吸引力和合理性。
-    - 通过标准: 角色 **性格鲜明**，具备一定的辨识度；角色行为 **符合逻辑**，且有一定背景支撑；主角 **目的与行动一致**，动机明确；
-    - 不通过标准: 角色 **扁平化**，缺乏鲜明个性和记忆点；或者 角色行为 **不符合逻辑**；或者 主角 **目的与行动不一致**；或者存在 **人设矛盾** 的情况。
+    评估角色的人格吸引力和以及角色能否合理地融入剧情
+    - 评估标准 (至少满足其一)
+        1. **角色性格鲜明**, 具备很好的辨识度, 不应该存在扁平化或缺乏个性的角色
+        2. **角色行为**, 逻辑自洽, 符合剧情背景与剧情发展
+        3. **角色动机明确**, 角色有明确的动机, 且所有行为与动作都建立在其基本动机之上, 不应该自相矛盾
 3. 钩子 (关键悬念点): 
-    评估剧情钩子的质量和吸引力。
-    - 通过标准: **开篇或关键情节设置了一定的冲突或信息差**，初步吸引眼球；剧情 **情绪表达基本到位**，能初步调动观众情绪；**卡点设置合理**，能引发观众一定的期待。
-    - 不通过标准: **开篇或关键情节缺乏强冲突或信息差**，平淡无奇；或者 剧情 **情绪不足**；或者 **卡点设置无效**，无法引发观众期待。
+    评估剧情钩子能否引导观众继续观看剧集
+    - 评估标准 (至少满足其一)
+        1. **在开篇或关键情节设置了强烈冲突**, 吸引观众眼球
+        2. **在开篇或关键情节刻意制造信息差**, 引发观众好奇心理
+        3. **将剧情情绪烘托到高位, 戛然而止**, 令观众深入沉浸, 渴望继续观看
+        4. **剧情卡点设置恰当, 破坏关键剧情的连贯性**, 引发观众继续观看的强烈期待
 4. 投流 (商业化潜力): 
-    评估大纲的商业变现潜力。
-    - 通过标准: 剧情 **吸睛事件较密集**，可提炼出一定数量的投流素材。
-    - 不通过标准: 剧情 **缺乏吸睛事件**，难以提炼投流素材；或者 **素材质量低**，不符合目标市场偏好**。
+    评估大纲的推广传播潜力以及商业变现潜力
+    - 评估标准 (至少满足其一)
+        1. **吸睛事件密集**，可提炼出一定数量的投流素材
+        2. **素材质量高**, 符合海外市场偏好
+        3. **矛盾冲突激烈**, 牵动观众情绪
 </评估标准>
 <输出格式>
 ```json
@@ -59,10 +70,10 @@ def convert_to_alpaca_format(df):
     alpaca_data = []
     for _, row in df.iterrows():
         # 提取 outline 作为 instruction
-        instruction = ('<任务>依据给定评估标准,对用户提供的短剧大纲进行评估，并给出评估结果和改进建议</任务>'
+        instruction = ('<任务>依据给定评估标准, 对用户提供的短剧大纲进行多维度评估, 给出各个维度的评估结果(通过/不通过), 对于不通过的维度, 请给出其原因和改进建议</任务>'
                        '<目标>按规定格式给出评估结果和改进建议</目标>')
         instruction += STANDARD
-        _input = row['outline']
+        _input = '<短剧大纲>' + row['outline'] + '</短剧大纲>'
 
         # 提取 human_result_data 或 llm_result_data 作为 output（根据需求选择）
         # 这里选择 human_result_data 作为示例
@@ -79,6 +90,8 @@ def convert_to_alpaca_format(df):
             "system": ""
         }
         alpaca_data.append(alpaca_entry)
+    print('Alpaca:')
+    pp(alpaca_data)
     return alpaca_data
 
 
@@ -86,10 +99,10 @@ def convert_to_dpo_format(df):
     dpo_data = []
     for _, row in df.iterrows():
         # 提取 outline 作为 instruction
-        instruction = ('<任务>依据给定评估标准,对用户提供的短剧大纲进行评估，并给出评估结果和改进建议</任务>'
+        instruction = ('<任务>依据给定评估标准, 对用户提供的短剧大纲进行多维度评估, 给出各个维度的评估结果(通过/不通过), 对于不通过的维度, 请给出其原因和改进建议</任务>'
                        '<目标>按规定格式给出评估结果和改进建议</目标>')
         instruction += STANDARD
-        _input = row['outline']
+        _input = '<短剧大纲>' + row['outline'] + '</短剧大纲>'
 
         # 提取 human_result_data 或 llm_result_data 作为 output（根据需求选择）
         # 这里选择 human_result_data 作为示例
@@ -110,6 +123,8 @@ def convert_to_dpo_format(df):
             "system": ""
         }
         dpo_data.append(dpo_entry)
+    print('DPO:')
+    pp(dpo_data)
     return dpo_data
 
 
@@ -120,22 +135,34 @@ def save_to_jsonl(data, file_path):
             f.write('\n')
 
 
-def main():
+def save_to_json_list(data, file_path):
+    with open(file_path, 'w', encoding='utf-8') as f:
+        json.dump(data, f, ensure_ascii=False)
+
+
+def main(get_index: int = -1):
     from pprint import pp
     # 文件路径
     now = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
     csv_file_path = 'raw_data/llm_dataset_post.csv'  # 原始 CSV 文件
-    alpaca_jsonl_file_path = f'script_review_alpaca_{now}.jsonl'  # 输出 JSONL 文件
-    dpo_jsonl_file_path = f'script_review_dpo_{now}.jsonl'  # 输出 JSONL 文件
+    alpaca_jsonl_file_path = f'script_review_alpaca_{now}.json'  # 输出 JSON 文件
+    dpo_jsonl_file_path = f'script_review_dpo_{now}.json'  # 输出 JSON 文件
     # 读取数据
     df = read_csv_data(csv_file_path)
     # 转换数据
     alpaca_data = convert_to_alpaca_format(df)
     dpo_data = convert_to_dpo_format(df)
-    # 保存为 jsonl 文件
-    save_to_jsonl(alpaca_data, alpaca_jsonl_file_path)
-    save_to_jsonl(dpo_data, dpo_jsonl_file_path)
 
+    # 保存为 json 文件
+    if get_index < 0:
+        save_to_json_list(alpaca_data, alpaca_jsonl_file_path)
+        save_to_json_list(dpo_data, dpo_jsonl_file_path)
+    else:
+        print('Instruction Data Example:')
+        print(alpaca_data[get_index]['instruction'])
+        print(alpaca_data[get_index]['input'])
+        print('Label Data Example:')
+        pp(alpaca_data[get_index]['output'])
 
 if __name__ == "__main__":
-    main()
+    main(0)
