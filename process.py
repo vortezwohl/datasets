@@ -4,6 +4,12 @@ from pprint import pp
 import pandas as pd
 import json
 
+from dotenv import load_dotenv
+from ceo import get_openai_model
+
+load_dotenv()
+gpt4o_mini = get_openai_model(top_p=1, temp=0.4)
+
 INSTRUCTION = ('# **任务描述:**\n'
                '你是一个短剧评估专家，请根据以下步骤对短剧大纲的质量进行评估，并输出评估结果。')
 
@@ -37,49 +43,46 @@ FORMAT = '''
 # **输出格式:**
 输出一个键名为 "result" 的 JSON 列表, 该列表包含四个 JSON 对象, 分别对应四个评估维度（主线、人设、钩子和投流）, 每个 JSON 对象包含以下键:
 - "dimension": str，评估维度名称, 取值 ∈ ["主线", "人设", "钩子", "投流"].
-- "description": str，该维度的评估理由, 若评估为 "不通过", 必须详细说明具体原因; 若评估结果为 "通过", 简要说明优点即可.
-- "result": str，该维度的评估结果 ("通过"/"不通过").
+- "description": str，该维度的详细评估理由与思路.
+- "result": str，该维度的最终评估结果 ("通过"/"不通过").
 # **示例输出:**
 ```json
-{
-  "result": [
+[
     {
-      "dimension": "主线",
-      "description": "主线设定过多，超过了5个，导致故事焦点不明确。",
-      "result": "不通过"
+        "dimension": "主线",
+        "description": "主线设定过多，超过了5个，导致故事焦点不明确。",
+        "result": "不通过"
     },
     {
-      "dimension": "人设",
-      "description": "人设与主线一致，且有效推动了剧情发展。",
-      "result": "通过"
+        "dimension": "人设",
+        "description": "人设与主线一致，且有效推动了剧情发展。",
+        "result": "通过"
     },
     {
-      "dimension": "钩子",
-      "description": "钩子类型不符合要求，缺乏吸引观众的亮点。",
-      "result": "不通过"
+        "dimension": "钩子",
+        "description": "钩子类型不符合要求，缺乏吸引观众的亮点。",
+        "result": "不通过"
     },
     {
-      "dimension": "投流",
-      "description": "投流内容矛盾冲突明显，能够吸引观众。",
-      "result": "通过"
+        "dimension": "投流",
+        "description": "投流内容矛盾冲突明显，能够吸引观众。",
+        "result": "通过"
     }
-  ]
-}
+]
 ```
 '''
 
 
 def data_reform(_raw_data, llm: bool = False):
     try:
+        _raw_data = _raw_data[_raw_data.find('['): _raw_data.rfind(']') + 1]
         _data = json.loads(_raw_data)
         if llm:
             _data = _data['result']
         for d in _data:
             res = d['result']
             del d['result']
-            d['analysis'] = d['description']
             d['result'] = res
-            del d['description']
         return json.dumps(_data, ensure_ascii=False)
     except json.JSONDecodeError as e:
         print(f'Failed to parse: \n{_raw_data}\nError: {e}')
@@ -132,12 +135,23 @@ def convert_to_alpaca_format(df):
     for _, row in df.iterrows():
         # 提取 outline 作为 instruction
         instruction = INSTRUCTION + STEP + FORMAT
-        _input = '<短剧大纲>' + str(row['outline']) + '</短剧大纲>'
+        _input = '**短剧大纲:**\n' + str(row['outline'])
 
         # 提取 human_result_data 或 llm_result_data 作为 output（根据需求选择）
         # 这里选择 human_result_data 作为示例
         # 如果需要使用 llm_result_data，请修改以下行
         raw_output_data = str(row['human_result_data']).replace('\'', '\"')
+        tmp_origin_ans = raw_output_data
+
+        # todo postprocess
+        raw_output_data = gpt4o_mini.invoke('''
+        **任务描述:**
+        你是一个短剧评估专家，请根据不完整的参考答案, 并根据以下步骤对参考答案的"description"部分进行补充, 并保持原格式不变(json list, 输出顺序, 1. dimension 2. description 3. result)。
+        ''' + STEP + '''
+        ---------以下是用户输入---------
+        ''' + f'<短剧大纲>{_input}</短剧大纲><参考答案>{raw_output_data}</参考答案>').content
+        print('Original Ans:', tmp_origin_ans, 'GPT-4o-mini:', raw_output_data)
+
         if raw_output_data is None or raw_output_data == 'nan':
             continue
         output_data = data_reform(raw_output_data)
@@ -201,7 +215,7 @@ def main(get_index: int = -1):
     # 文件路径
     now = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
     csv_file_path = 'raw_data/llm_dataset_pre_test.csv'  # 原始 CSV 文件
-    alpaca_jsonl_file_path = f'script_review_alpaca_test_{now}.json'  # 输出 JSON 文件
+    alpaca_jsonl_file_path = f'script_review_alpaca_test_{now}.jsonl'  # 输出 JSON 文件
     openai_jsonl_file_path = f'script_review_openai_{now}.jsonl'  # 输出 JSON 文件
     dpo_jsonl_file_path = f'script_review_dpo_{now}.json'  # 输出 JSON 文件
     # 读取数据
@@ -213,7 +227,8 @@ def main(get_index: int = -1):
 
     # 保存为 json 文件
     if get_index < 0:
-        save_to_json_list(alpaca_data, alpaca_jsonl_file_path)
+        # save_to_json_list(alpaca_data, alpaca_jsonl_file_path)
+        save_to_jsonl(alpaca_data, alpaca_jsonl_file_path)
         # save_to_json_list(dpo_data, dpo_jsonl_file_path)
         # save_to_jsonl(openai_data, openai_jsonl_file_path)
     else:
