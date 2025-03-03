@@ -214,8 +214,9 @@ def main(get_index: int = -1):
     from pprint import pp
     # 文件路径
     now = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
-    csv_file_path = 'raw_data/llm_dataset_pre_test.csv'  # 原始 CSV 文件
-    alpaca_jsonl_file_path = f'script_review_alpaca_test_{now}.jsonl'  # 输出 JSON 文件
+    csv_file_path = 'raw_data/llm_dataset_pre.csv'  # 原始 CSV 文件
+    alpaca_jsonl_file_path = f'script_review_alpaca_{now}.jsonl'  # 输出 JSON 文件
+    alpaca_json_file_path = f'script_review_alpaca_{now}.json'  # 输出 JSON 文件
     openai_jsonl_file_path = f'script_review_openai_{now}.jsonl'  # 输出 JSON 文件
     dpo_jsonl_file_path = f'script_review_dpo_{now}.json'  # 输出 JSON 文件
     # 读取数据
@@ -227,8 +228,8 @@ def main(get_index: int = -1):
 
     # 保存为 json 文件
     if get_index < 0:
-        # save_to_json_list(alpaca_data, alpaca_jsonl_file_path)
         save_to_jsonl(alpaca_data, alpaca_jsonl_file_path)
+        save_to_json_list(alpaca_data, alpaca_json_file_path)
         # save_to_json_list(dpo_data, dpo_jsonl_file_path)
         # save_to_jsonl(openai_data, openai_jsonl_file_path)
     else:
