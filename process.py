@@ -38,7 +38,7 @@ STANDARD = '''
             2. 角色较多本身不是问题, 只要角色性格清晰, 且实际参与并共同推进主线剧情即可
 3. 钩子 (关键悬念点): 
     评估剧情钩子能否引导观众继续观看剧集
-    常见钩子类型: [欲点(暧昧画面), 掉马甲(被认出真实身份), 隐藏身份暴露, 真相曝光(发现事情原貌), 女主绝症, 亲子相认, 逆袭打脸(以高姿态逆袭), 英雄救美(女主于险境中获救)]
+    常见钩子类型: [欲点(暧昧画面), 隐藏身份暴露(也叫掉马甲), 真相曝光(发现事情原貌, 或真实身份曝光), 女主绝症, 亲子相认, 逆袭打脸(以高姿态逆袭, 形象大变), 英雄救美(女主于险境中获救)]
     - 评估级别: 宽松, 只要满足其一就算通过
     - 评估参考
         1. **在开篇或关键情节设置了强烈冲突**, 吸引观众眼球
@@ -70,32 +70,25 @@ def data_reform(_raw_data, llm: bool = False):
     try:
         _data = json.loads(_raw_data)
         if llm:
-            # _data = _data['result']
-            ...
+            _data = _data['result']
         for d in _data:
             res = d['result']
             del d['result']
-            try:
-                d['analysis'] = d['description']
-            except:
-                pass
+            d['analysis'] = d['description']
             d['result'] = res
-            try:
-                del d['description']
-            except:
-                ...
-        return _data
+            del d['description']
+        return json.dumps(_data, ensure_ascii=False)
     except json.JSONDecodeError as e:
         print(f'Failed to parse: \n{_raw_data}\nError: {e}')
         return None
 
 
 def read_csv_data(file_path):
-    return pd.read_csv(file_path)
+    return pd.read_csv(file_path, encoding='gbk')
 
 
-def convert_to_alpaca_format(df):
-    alpaca_data = []
+def convert_to_openai_format(df):
+    openai_data = []
     for _, row in df.iterrows():
         # 提取 outline 作为 instruction
         instruction = INSTRUCTION
@@ -111,10 +104,47 @@ def convert_to_alpaca_format(df):
         output_data = data_reform(raw_output_data)
         # 转换为 Alpaca 格式
         alpaca_entry = {
+            "messages":[
+                {
+                    'role': 'system',
+                    'content': instruction
+                },
+                {
+                    'role': 'user',
+                    'content': _input
+                },
+                {
+                    'role': 'assistant',
+                    'content': output_data
+                }
+            ]
+        }
+        openai_data.append(alpaca_entry)
+    print('Openai:')
+    pp(openai_data)
+    return openai_data
+
+
+def convert_to_alpaca_format(df):
+    alpaca_data = []
+    for _, row in df.iterrows():
+        # 提取 outline 作为 instruction
+        instruction = INSTRUCTION
+        instruction += STANDARD
+        _input = '<短剧大纲>' + str(row['outline']) + '</短剧大纲>'
+
+        # 提取 human_result_data 或 llm_result_data 作为 output（根据需求选择）
+        # 这里选择 human_result_data 作为示例
+        # 如果需要使用 llm_result_data，请修改以下行
+        raw_output_data = str(row['human_result_data']).replace('\'', '\"')
+        if raw_output_data is None or raw_output_data == 'nan':
+            continue
+        output_data = data_reform(raw_output_data)
+        # 转换为 Alpaca 格式
+        alpaca_entry = {
             "instruction": instruction,
             "input": _input,
-            "output": output_data,
-            "system": ""
+            "output": output_data
         }
         alpaca_data.append(alpaca_entry)
     print('Alpaca:')
@@ -163,26 +193,29 @@ def save_to_jsonl(data, file_path):
 
 def save_to_json_list(data, file_path):
     with open(file_path, 'w', encoding='utf-8') as f:
-        json.dump(data, f, ensure_ascii=False)
+        f.write(json.dumps(data, ensure_ascii=False))
 
 
 def main(get_index: int = -1):
     from pprint import pp
     # 文件路径
     now = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
-    csv_file_path = 'raw_data/llm_dataset_post.csv'  # 原始 CSV 文件
-    alpaca_jsonl_file_path = f'script_review_alpaca_{now}.json'  # 输出 JSON 文件
+    csv_file_path = 'raw_data/llm_dataset_pre_test.csv'  # 原始 CSV 文件
+    alpaca_jsonl_file_path = f'script_review_alpaca_test_{now}.json'  # 输出 JSON 文件
+    openai_jsonl_file_path = f'script_review_openai_{now}.jsonl'  # 输出 JSON 文件
     dpo_jsonl_file_path = f'script_review_dpo_{now}.json'  # 输出 JSON 文件
     # 读取数据
     df = read_csv_data(csv_file_path)
     # 转换数据
     alpaca_data = convert_to_alpaca_format(df)
-    dpo_data = convert_to_dpo_format(df)
+    # dpo_data = convert_to_dpo_format(df)
+    # openai_data = convert_to_openai_format(df)
 
     # 保存为 json 文件
     if get_index < 0:
         save_to_json_list(alpaca_data, alpaca_jsonl_file_path)
-        save_to_json_list(dpo_data, dpo_jsonl_file_path)
+        # save_to_json_list(dpo_data, dpo_jsonl_file_path)
+        # save_to_jsonl(openai_data, openai_jsonl_file_path)
     else:
         print('Instruction Data Example:')
         print(alpaca_data[get_index]['instruction'])
